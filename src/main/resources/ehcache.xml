@@ -10,7 +10,7 @@
            overflowToDisk="false"
            statistics="true">
     </cache>
-<!-- 
+
     <cache name="authorizationCache"
            maxEntriesLocalHeap="2000"
            eternal="false"
@@ -28,7 +28,7 @@
            overflowToDisk="false"
            statistics="true">
     </cache>
--->
+
     <cache name="shiro-activeSessionCache"
            maxEntriesLocalHeap="2000"
            eternal="false"

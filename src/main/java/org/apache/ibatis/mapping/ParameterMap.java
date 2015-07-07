@@ -28,6 +28,7 @@ public class ParameterMap {
   private String id;
   private Class<?> type;
   private List<ParameterMapping> parameterMappings;
+  private String value;
 
   private ParameterMap() {
   }
@@ -63,5 +64,13 @@ public class ParameterMap {
   public List<ParameterMapping> getParameterMappings() {
     return parameterMappings;
   }
+
+public String getValue() {
+	return value;
+}
+
+public void setValue(String value) {
+	this.value = value;
+}
 
 }

@@ -47,9 +47,8 @@
 	<bean id="chainDefinitionSectionMetaSource" class="com.lanyuan.shiro.ChainDefinitionSectionMetaSource">
 		<property name="filterChainDefinitions">
 			<value>
-					/favicon.ico = anon
+			/favicon.ico = anon
     		/admin_files/** = anon
-    		/jqwidgets-ver3.6.0/** = anon
     		/fonts/** = anon
     		/404/** = anon
     		/error.jsp = anon
@@ -57,7 +56,6 @@
     		/layer-v1.9.2/** = anon
     		/notebook/** = anon
     		/login.shtml = anon
-			/validateCode = anon
 			/denied.jsp = anon
 			/install.shtml = anon
 			</value>

@@ -76,7 +76,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
   private final Map<CacheKey, Object> nestedResultObjects = new HashMap<CacheKey, Object>();
   private final Map<CacheKey, Object> ancestorObjects = new HashMap<CacheKey, Object>();
   private final Map<String, String> ancestorColumnPrefix = new HashMap<String, String>();
-
+  public static final String BATCHSAVE = ".BaseMapper.";
   // multiple resultsets
   private final Map<String, ResultMapping> nextResultMaps = new HashMap<String, ResultMapping>();
   private final Map<CacheKey, List<PendingRelation>> pendingRelations = new HashMap<CacheKey, List<PendingRelation>>();
@@ -172,15 +172,15 @@ public List<Object> handleResultSets(Statement stmt) throws SQLException {
       }
     }
     List<Object> lists = collapseSingleResultList(multipleResults);
-    List<Object> mlist = new ArrayList<Object>();
-    Object parameterObject = boundSql.getParameterObject();
-    Map map = (Map) parameterObject;
-	Object o3 = null;
-	if(null!=map){
-		o3=map.get("param3");
-	}
-    if(mappedStatement.getId().indexOf(".BaseMapper.")>-1){
+    if(mappedStatement.getId().indexOf(BATCHSAVE)>-1){
 		try {
+		  List<Object> mlist = new ArrayList<Object>();
+		    Object parameterObject = boundSql.getParameterObject();
+		    Map map = (Map) parameterObject;
+			Object o3 = null;
+			if(null!=map){
+				o3=map.get("param3");
+			}
 			for (Object object : lists) {
 				Map<String, Object> m = (Map) object;
 				Object o = null; 

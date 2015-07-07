@@ -8,7 +8,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.config.Ini;
 import org.springframework.beans.factory.FactoryBean;
 
-import com.lanyuan.entity.ResUserFormMap;
+import com.lanyuan.entity.ResFormMap;
 import com.lanyuan.mapper.ResourcesMapper;
 
 /**
@@ -30,11 +30,12 @@ public class ChainDefinitionSectionMetaSource implements FactoryBean<Ini.Section
 		Ini.Section section = ini.getSection(Ini.DEFAULT_SECTION_NAME);
 		// 循环Resource的url,逐个添加到section中。section就是filterChainDefinitionMap,
 		// 里面的键就是链接URL,值就是存在什么条件才能访问该链接
-		List<ResUserFormMap> lists = resourcesMapper.findByWhere(new ResUserFormMap());
-		for (ResUserFormMap resources : lists) {
+		List<ResFormMap> lists = resourcesMapper.findByWhere(new ResFormMap());
+		for (ResFormMap resources : lists) {
 			// 构成permission字符串
 			if (StringUtils.isNotEmpty(resources.get("resUrl") + "") && StringUtils.isNotEmpty(resources.get("resKey") + "")) {
 				String permission = "perms[" + resources.get("resKey") + "]";
+				System.out.println(permission);
 				// 不对角色进行权限验证
 				// 如需要则 permission = "roles[" + resources.getResKey() + "]";
 				section.put(resources.get("resUrl") + "", permission);
