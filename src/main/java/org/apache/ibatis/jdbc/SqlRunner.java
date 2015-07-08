@@ -291,7 +291,7 @@ public class SqlRunner {
 			while (rs.next()) {
 				field += rs.getString("Field") + ",";
 				String column_key = rs.getString("Key");
-				if (StringUtils.isNotBlank(column_key)) {
+				if (StringUtils.isNotBlank(column_key)&&"PRI".equals(column_key)) {
 					map.put(Configuration.COLUMN_KEY, ResolverUtil.trimComma(field));
 				}
 				;
