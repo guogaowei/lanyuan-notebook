@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.ibatis.io.ResolverUtil;
@@ -333,13 +331,20 @@ public class Plugin implements InvocationHandler {
 
 	public static void setCount(String sql, Connection connection, BoundSql boundSql,
 			PageView pageView) throws SQLException {
-		// 记录总记录数
 		PreparedStatement countStmt = null;
 		ResultSet rs = null;
 		try {
-			String countSql = "SELECT COUNT(1) FROM " + suffixStr(sql);
-			countStmt = connection.prepareStatement(countSql);
-			rs = countStmt.executeQuery();
+			String countSql = "";
+			try {
+				 countSql = "SELECT COUNT(1) FROM " + suffixStr(removeOrderBys(sql));
+				countStmt = connection.prepareStatement(countSql);
+				rs = countStmt.executeQuery();
+			} catch (Exception e) {
+				PagePlugin.logger.error(countSql+" 统计Sql出错,自动转换为普通统计Sql语句!");
+				countSql = "select count(1) from (" + sql+ ") tmp_count"; 
+				countStmt = connection.prepareStatement(countSql);
+				rs = countStmt.executeQuery();
+			}
 			int count = 0;
 			if (rs.next()) {
 				count = ((Number) rs.getObject(1)).intValue();
@@ -357,30 +362,61 @@ public class Plugin implements InvocationHandler {
 		}
 
 	}
-
-	public static String suffixStr(String toSql) {
-		toSql = toSql.toUpperCase();
-		Pattern p = Pattern.compile("FROM");
-		Matcher matcher = p.matcher(toSql);
-		int st1 = 0;
-		while (matcher.find()) {// 循环from关键字所出现的位置
-			int st = matcher.start();
-			String zb = "";
-			if (st1 == 0) {
-				zb = toSql.substring(0, st + 4);
-				st1 = st;
-			} else {
-				zb = toSql.substring(st1, st + 4);
-				st1 = st;
-			}
-			if (zb.indexOf("(") == -1) {// from之前是否有括号
-				String ss1 = toSql.substring(st - 1, st);
-				String ss2 = toSql.substring(st + 4, st + 5);
-				if (ss1.trim().isEmpty() && ss2.trim().isEmpty()) {// 判断第一个from的前后是否为空
-					return toSql.substring(st + 4);
-				}
+	public static String suffixStr(String toSql){
+		toSql=toSql.toUpperCase();
+		int sun = toSql.indexOf("FROM");
+		String f1 = toSql.substring(sun-1,sun);
+		String f2 = toSql.substring(sun+4,sun+5);
+		if(f1.trim().isEmpty()&&f2.trim().isEmpty()){
+			String s1 = toSql.substring(0,sun);
+			int s0 =s1.indexOf("(");
+			if(s0>-1){
+				int se1 =s1.indexOf("SELECT");
+				if(s0<se1){
+					if(se1>-1){
+						String ss1 = s1.substring(se1-1,se1);
+						String ss2 = s1.substring(se1+6,se1+7);
+						if(ss1.trim().isEmpty()&&ss2.trim().isEmpty()){
+							return suffixStr(toSql.substring(sun+5));
+						}
+					}
+				}	
+				int se2 =s1.indexOf("(SELECT");
+					if(se2>-1){
+						String ss2 = s1.substring(se2+7,se2+8);
+						if(ss2.trim().isEmpty()){
+							return suffixStr(toSql.substring(sun+5));
+						}
+					}
+					if(se1==-1&&se2==-1){
+						return toSql.substring(sun+5);
+					}else{
+						toSql=toSql.substring(sun+5);
+					}
+			}else{
+				toSql=toSql.substring(sun+5);
 			}
 		}
 		return toSql;
 	}
+  private static String removeOrderBys(String toSql) {  
+	  	toSql=toSql.toUpperCase();
+	  	int sun = toSql.indexOf("ORDER");
+	  	if(sun>-1){
+	  	  	String f1 = toSql.substring(sun-1,sun);
+	  		String f2 = toSql.substring(sun+5,sun+5);
+	  		if(f1.trim().isEmpty()&&f2.trim().isEmpty()){
+	  		  	String zb = toSql.substring(sun);
+	  		  	int s0 =zb.indexOf(")");
+	  		  	if(s0>-1){
+	  		  		String s1=toSql.substring(0,sun);
+	  		  		String s2 =zb.substring(s0);
+	  		  		return removeOrderBys(s1+s2);
+	  		  	}else{
+	  		  		toSql=toSql.substring(0,sun);
+	  		  	}
+	  		}
+	  	}
+		return toSql;
+  }
 }
