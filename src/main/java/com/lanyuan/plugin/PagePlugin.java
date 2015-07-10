@@ -46,7 +46,7 @@ import com.lanyuan.util.FormMap;
 @SuppressWarnings("unchecked")
 @Intercepts( { @Signature(type = StatementHandler.class, method = "prepare", args = { Connection.class })})
 public class PagePlugin implements Interceptor {
-	private final Logger logger = Logger.getLogger(PagePlugin.class);
+	public final static Logger logger = Logger.getLogger(PagePlugin.class);
 	private static String dialect = null;//数据库类型
 	private static String pageSqlId = ""; // mybaits的数据库xml映射文件中需要拦截的ID(正则匹配)
 	@SuppressWarnings("rawtypes")
@@ -145,14 +145,17 @@ public class PagePlugin implements Interceptor {
     	PreparedStatement countStmt = null;
 		ResultSet rs = null;
 		try {
-			String countSql = "SELECT COUNT(1) FROM "+suffixStr(sql); // 记录统计
-			countStmt = connection.prepareStatement(countSql);
-			ReflectHelper.setValueByFieldName(boundSql, "sql",
-					countSql);
-			DefaultParameterHandler parameterHandler = new DefaultParameterHandler(
-					mappedStatement, parameterObject, boundSql);
-			parameterHandler.setParameters(countStmt);
-			rs = countStmt.executeQuery();
+			String countSql = "";
+			try {
+				 countSql = "SELECT COUNT(1) FROM " + suffixStr(removeOrderBys(sql));
+				countStmt = connection.prepareStatement(countSql);
+				rs = countStmt.executeQuery();
+			} catch (Exception e) {
+				PagePlugin.logger.error(countSql+" 统计Sql出错,自动转换为普通统计Sql语句!");
+				countSql = "select count(1) from (" + sql+ ") tmp_count"; 
+				countStmt = connection.prepareStatement(countSql);
+				rs = countStmt.executeQuery();
+			}
 			int count = 0;
 			if (rs.next()) {
 				count = ((Number) rs.getObject(1)).intValue();
@@ -170,42 +173,91 @@ public class PagePlugin implements Interceptor {
 		}
 
     }
-    /**
+	/**
 	   *   select
 	     *  id,
 		 * 	articleNo,
+		 * sum(ddd) ss,
 		 * 	articleName,
 	     *  (SELECT loginName from ly_userinfo u where u.id=userId) loginName,
 		 * 	(SELECT userName from ly_userinfo u where u.id=userId) userName,
+		 * sum(ddd) ss
 		 * from article	
 		 * 兼容以上子查询
 		 * //去除sql ..from 前面的字符。考虑 aafrom fromdd 等等情况
 	   */
 	public static String suffixStr(String toSql){
 		toSql=toSql.toUpperCase();
-		Pattern p=Pattern.compile("FROM");
-		Matcher matcher=p.matcher(toSql);
-		int st1=0;
-		while(matcher.find()){//循环from关键字所出现的位置
-			 int st= matcher.start();
-			 String zb = "";
-			 if(st1==0){
-				 zb = toSql.substring(0,st+4);
-				 st1=st;
-			 }else{
-				 zb = toSql.substring(st1,st+4);
-				 st1=st;
-			 }
-			 if(zb.indexOf("(")==-1){//from之前是否有括号
-				 String ss1 = toSql.substring(st-1,st);
-					String ss2 = toSql.substring(st+4,st+5);
-				   if(ss1.trim().isEmpty()&&ss2.trim().isEmpty()){//判断第一个from的前后是否为空
-					   return toSql.substring(st+4);
-				   }
-			 }
+		int sun = toSql.indexOf("FROM");
+		String f1 = toSql.substring(sun-1,sun);
+		String f2 = toSql.substring(sun+4,sun+5);
+		if(f1.trim().isEmpty()&&f2.trim().isEmpty()){//判断第一个from的前后是否为空
+			String s1 = toSql.substring(0,sun);
+			int s0 =s1.indexOf("(");
+			if(s0>-1){
+				int se1 =s1.indexOf("SELECT");
+				if(s0<se1){
+					if(se1>-1){
+						String ss1 = s1.substring(se1-1,se1);
+						String ss2 = s1.substring(se1+6,se1+7);
+						if(ss1.trim().isEmpty()&&ss2.trim().isEmpty()){//判断第一个from的前后是否为空
+							return suffixStr(toSql.substring(sun+5));
+						}
+					}
+				}	
+				int se2 =s1.indexOf("(SELECT");
+					if(se2>-1){
+						String ss2 = s1.substring(se2+7,se2+8);
+						if(ss2.trim().isEmpty()){//判断第一个from的前后是否为空
+							return suffixStr(toSql.substring(sun+5));
+						}
+					}
+					if(se1==-1&&se2==-1){
+						return toSql.substring(sun+5);
+					}else{
+						toSql=toSql.substring(sun+5);
+					}
+			}else{
+				toSql=toSql.substring(sun+5);
+			}
 		}
 		return toSql;
 	}
+	public static void main(String[] args) {
+		String sql="  select "+
+		 "	articleNo "+
+		 " from article left jion aefv where 1=(SELECT userName from ly_userinfo u where u.id=userId) "
+		 + "and id = sdf   order by as asc";
+		sql=removeOrderBys(sql);
+		System.out.println(sql);
+		System.out.println(suffixStr(sql));
+	}
+	 /** 
+   * 去除Sql的orderBy。 
+   * @param toSql 
+   * @return String
+   *
+   */  
+  private static String removeOrderBys(String toSql) {  
+	  	toSql=toSql.toUpperCase();
+	  	int sun = toSql.indexOf("ORDER");
+	  	if(sun>-1){
+	  	  	String f1 = toSql.substring(sun-1,sun);
+	  		String f2 = toSql.substring(sun+5,sun+5);
+	  		if(f1.trim().isEmpty()&&f2.trim().isEmpty()){//判断第一个from的前后是否为空
+	  		  	String zb = toSql.substring(sun);
+	  		  	int s0 =zb.indexOf(")");
+	  		  	if(s0>-1){//from之前是否有括号
+	  		  		String s1=toSql.substring(0,sun);
+	  		  		String s2 =zb.substring(s0);
+	  		  		return removeOrderBys(s1+s2);
+	  		  	}else{
+	  		  		toSql=toSql.substring(0,sun);
+	  		  	}
+	  		}
+	  	}
+		return toSql;
+  }
 	
     /**
 	 * 根据数据库方言，生成特定的分页sql
